@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AXIOM — The Future of Focus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ─── RESET & VARS ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:    #06070a;
+  --void:   #0b0d12;
+  --mist:   #12151c;
+  --steel:  #1e2330;
+  --dim:    #4a5168;
+  --fog:    #7c8599;
+  --light:  #c8cdd8;
+  --white:  #f0f2f7;
+  --cyan:   #5bf5d8;
+  --cyan2:  #2de8bf;
+  --glow:   rgba(91,245,216,0.12);
+  --ff-h:   'Syne', sans-serif;
+  --ff-m:   'DM Mono', monospace;
+  --ease:   cubic-bezier(.4,0,.2,1);
+  --spring: cubic-bezier(.34,1.56,.64,1);
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--ink);
+  color: var(--light);
+  font-family: var(--ff-m);
+  font-weight: 300;
+  overflow-x: hidden;
+  cursor: none;
+}
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 2px; }
+::selection { background: var(--cyan); color: var(--ink); }
+
+/* ─── CURSOR ─── */
+#cur, #cur2 {
+  position: fixed; border-radius: 50%;
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: transform .1s;
+  mix-blend-mode: exclusion;
+}
+#cur  { width:10px; height:10px; background:var(--white); transition: width .18s var(--spring), height .18s var(--spring), background .18s; }
+#cur2 { width:36px; height:36px; border:1px solid rgba(91,245,216,.5); background:transparent; transition: left .12s var(--ease), top .12s var(--ease), width .22s var(--spring), height .22s var(--spring), border-color .2s; }
+body:has(a:hover) #cur,
+body:has(button:hover) #cur { width:18px; height:18px; background: var(--cyan); }
+body:has(a:hover) #cur2,
+body:has(button:hover) #cur2 { width:54px; height:54px; border-color: var(--cyan); }
+
+/* ─── NAV ─── */
+nav {
+  position: fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 28px 60px;
+  transition: padding .4s var(--ease), background .4s;
+}
+nav.scrolled {
+  padding: 16px 60px;
+  background: rgba(6,7,10,.88);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(91,245,216,.06);
+}
+.nav-logo {
+  font-family: var(--ff-h); font-weight: 800; font-size: 22px;
+  letter-spacing: 4px; color: var(--white); text-decoration: none;
+}
+.nav-logo span { color: var(--cyan); }
+.nav-links { display:flex; gap:36px; list-style:none; }
+.nav-links a {
+  font-size: 11px; letter-spacing: 2px; text-transform:uppercase;
+  color: var(--fog); text-decoration:none; transition: color .2s;
+  position:relative;
+}
+.nav-links a::after {
+  content:''; position:absolute; bottom:-4px; left:0;
+  width:0; height:1px; background:var(--cyan); transition: width .25s var(--ease);
+}
+.nav-links a:hover { color:var(--white); }
+.nav-links a:hover::after { width:100%; }
+.nav-cta {
+  font-family: var(--ff-h); font-size:12px; letter-spacing:2px; text-transform:uppercase;
+  background:none; border:1px solid rgba(91,245,216,.3); color:var(--cyan);
+  padding: 10px 24px; cursor:none; transition: all .25s var(--ease);
+  border-radius: 1px;
+}
+.nav-cta:hover { background:var(--cyan); color:var(--ink); border-color:var(--cyan); box-shadow: 0 0 30px rgba(91,245,216,.25); }
+
+/* ─── HERO ─── */
+#hero {
+  position:relative; min-height:100vh;
+  display:flex; flex-direction:column; justify-content:center;
+  padding: 0 60px; overflow:hidden;
+}
+#heroCanvas {
+  position:absolute; inset:0; width:100%; height:100%;
+  opacity:.9;
+}
+.hero-inner { position:relative; z-index:2; max-width:780px; }
+.hero-label {
+  font-size:11px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--cyan); margin-bottom:28px;
+  display:inline-flex; align-items:center; gap:10px;
+  opacity:0; animation: fadeUp .7s .3s var(--ease) forwards;
+}
+.hero-label::before { content:''; width:28px; height:1px; background:var(--cyan); }
+h1 {
+  font-family: var(--ff-h); font-weight:800;
+  font-size: clamp(52px, 7.5vw, 110px);
+  line-height: .92; letter-spacing: -2px;
+  color: var(--white); margin-bottom: 32px;
+}
+h1 .line { display:block; overflow:hidden; }
+h1 .line span {
+  display:block;
+  opacity:0; transform:translateY(100%);
+  animation: lineUp .75s var(--ease) forwards;
+}
+h1 .line:nth-child(1) span { animation-delay:.35s }
+h1 .line:nth-child(2) span { animation-delay:.48s }
+h1 .line:nth-child(3) span { animation-delay:.61s; color:var(--cyan); }
+@keyframes lineUp { to { opacity:1; transform:translateY(0); } }
+@keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+.hero-sub {
+  font-size:16px; color:var(--fog); line-height:1.8; max-width:480px; margin-bottom:48px;
+  opacity:0; animation: fadeUp .7s .75s var(--ease) forwards; transform:translateY(20px);
+}
+.hero-actions {
+  display:flex; gap:20px; align-items:center; flex-wrap:wrap;
+  opacity:0; animation: fadeUp .7s .9s var(--ease) forwards; transform:translateY(20px);
+}
+.btn-primary {
+  font-family: var(--ff-h); font-size:13px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+  background:var(--cyan); color:var(--ink); border:none;
+  padding:16px 40px; cursor:none;
+  position:relative; overflow:hidden; border-radius:1px;
+  transition: box-shadow .3s, transform .2s var(--spring);
+}
+.btn-primary::before {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(135deg,rgba(255,255,255,.25),transparent);
+  opacity:0; transition: opacity .25s;
+}
+.btn-primary:hover { box-shadow: 0 0 50px rgba(91,245,216,.35), 0 8px 32px rgba(91,245,216,.2); transform:translateY(-2px); }
+.btn-primary:hover::before { opacity:1; }
+.btn-ghost {
+  font-family: var(--ff-m); font-size:12px; letter-spacing:1px;
+  background:none; border:none; color:var(--fog); cursor:none;
+  display:flex; align-items:center; gap:8px; transition: color .2s;
+}
+.btn-ghost:hover { color:var(--white); }
+.btn-ghost svg { transition: transform .2s var(--spring); }
+.btn-ghost:hover svg { transform: translateX(4px); }
+.hero-scroll {
+  position:absolute; bottom:40px; left:60px; z-index:2;
+  display:flex; align-items:center; gap:12px;
+  font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--dim);
+  opacity:0; animation: fadeUp .6s 1.2s var(--ease) forwards;
+}
+.scroll-bar {
+  width:1px; height:48px; background: linear-gradient(to bottom, var(--cyan), transparent);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+@keyframes scrollPulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+.hero-badge {
+  position:absolute; right:60px; bottom:60px; z-index:2;
+  width:100px; height:100px; display:flex; align-items:center; justify-content:center;
+  opacity:0; animation: fadeUp .6s 1.4s var(--ease) forwards;
+}
+.badge-ring {
+  position:absolute; inset:0; border:1px solid rgba(91,245,216,.2); border-radius:50%;
+  animation: spin 12s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.badge-text {
+  font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--dim); text-align:center; line-height:1.5;
+}
+
+/* ─── MARQUEE ─── */
+.marquee-wrap {
+  border-top:1px solid rgba(91,245,216,.07); border-bottom:1px solid rgba(91,245,216,.07);
+  padding:18px 0; overflow:hidden; background:var(--void);
+}
+.marquee-track {
+  display:flex; width:max-content;
+  animation: marquee 24s linear infinite;
+}
+.marquee-track span {
+  font-size:11px; letter-spacing:3px; text-transform:uppercase;
+  color:var(--dim); white-space:nowrap; padding:0 40px;
+}
+.marquee-track span b { color:var(--cyan); font-weight:400; }
+@keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* ─── SECTION BASE ─── */
+section { padding: 120px 60px; }
+.s-tag {
+  display:inline-flex; align-items:center; gap:10px;
+  font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--cyan);
+  margin-bottom:20px;
+}
+.s-tag::before { content:''; width:20px; height:1px; background:var(--cyan); }
+.s-title {
+  font-family: var(--ff-h); font-weight:800;
+  font-size: clamp(36px, 4.5vw, 64px);
+  line-height:1; letter-spacing:-1px; color:var(--white);
+  margin-bottom:20px;
+}
+
+/* ─── FEATURES ─── */
+#features { background:var(--void); }
+.features-grid {
+  display:grid; grid-template-columns: repeat(3,1fr); gap:1px;
+  background: rgba(91,245,216,.06); margin-top:64px;
+  border:1px solid rgba(91,245,216,.06);
+}
+.feat {
+  background:var(--void); padding:48px 40px;
+  position:relative; overflow:hidden;
+  transition: background .3s;
+  cursor:default;
+}
+.feat::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  transform:scaleX(0); transform-origin:left; transition:transform .5s var(--ease);
+}
+.feat:hover { background: rgba(91,245,216,.03); }
+.feat:hover::before { transform:scaleX(1); }
+.feat-num {
+  font-family: var(--ff-h); font-size:64px; font-weight:800;
+  color: rgba(91,245,216,.06); line-height:1;
+  margin-bottom:24px; transition: color .3s;
+}
+.feat:hover .feat-num { color: rgba(91,245,216,.12); }
+.feat-icon { font-size:28px; margin-bottom:16px; display:block; }
+.feat h3 {
+  font-family: var(--ff-h); font-size:20px; font-weight:700;
+  color:var(--white); margin-bottom:12px;
+}
+.feat p { font-size:13px; color:var(--fog); line-height:1.8; }
+.feat-glow {
+  position:absolute; bottom:-40px; right:-40px; width:120px; height:120px;
+  background: radial-gradient(circle, rgba(91,245,216,.08), transparent 70%);
+  transition: transform .4s var(--ease);
+}
+.feat:hover .feat-glow { transform:scale(1.5); }
+
+/* ─── 3D PRODUCT SECTION ─── */
+#product {
+  display:flex; align-items:center; gap:80px; padding:120px 60px;
+  position:relative; overflow:hidden;
+}
+#productCanvas { width:520px; height:520px; flex-shrink:0; }
+.product-info { flex:1; }
+.product-info .s-title { margin-bottom:24px; }
+.product-info p { font-size:15px; color:var(--fog); line-height:1.9; margin-bottom:32px; max-width:440px; }
+.spec-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin-bottom:40px; }
+.spec-list li {
+  display:flex; align-items:center; gap:14px;
+  font-size:12px; letter-spacing:.5px; color:var(--light);
+  padding:14px 20px; background:var(--mist); border:1px solid rgba(91,245,216,.08);
+  transition: border-color .2s, background .2s;
+}
+.spec-list li:hover { border-color:rgba(91,245,216,.25); background:rgba(91,245,216,.03); }
+.spec-list li::before { content:''; width:6px; height:6px; background:var(--cyan); border-radius:50%; flex-shrink:0; }
+
+/* ─── STATS ─── */
+#stats {
+  background: var(--void);
+  border-top:1px solid rgba(91,245,216,.07); border-bottom:1px solid rgba(91,245,216,.07);
+}
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(91,245,216,.06); }
+.stat-box {
+  background:var(--void); padding:60px 40px; text-align:center;
+  transition:background .3s;
+}
+.stat-box:hover { background: rgba(91,245,216,.03); }
+.stat-num {
+  font-family: var(--ff-h); font-size:clamp(40px,4vw,64px);
+  font-weight:800; color:var(--cyan); display:block; line-height:1;
+  margin-bottom:8px;
+}
+.stat-label { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); }
+
+/* ─── TESTIMONIALS ─── */
+#testimonials { position:relative; }
+.testimonials-track {
+  display:flex; gap:24px; margin-top:60px;
+  overflow:hidden; position:relative;
+}
+.tcard {
+  flex:0 0 380px; background:var(--mist); border:1px solid rgba(91,245,216,.07);
+  padding:40px; transition:border-color .3s, transform .3s var(--spring);
+  cursor:default;
+}
+.tcard:hover { border-color:rgba(91,245,216,.2); transform:translateY(-6px); }
+.tcard-quote { font-size:13px; color:var(--light); line-height:1.9; margin-bottom:28px; font-style:italic; }
+.tcard-quote::before { content:'" '; color:var(--cyan); font-size:20px; font-style:normal; }
+.tcard-author { display:flex; align-items:center; gap:14px; }
+.tcard-avatar {
+  width:40px; height:40px; border-radius:50%;
+  background:var(--steel); border:1px solid rgba(91,245,216,.15);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; color:var(--cyan); font-family:var(--ff-h); font-weight:700; flex-shrink:0;
+}
+.tcard-name { font-size:13px; color:var(--white); font-weight:400; letter-spacing:.5px; }
+.tcard-role { font-size:11px; color:var(--dim); letter-spacing:.5px; margin-top:2px; }
+.t-controls { display:flex; gap:12px; margin-top:32px; align-items:center; }
+.t-btn {
+  width:40px; height:40px; border:1px solid rgba(91,245,216,.15); background:none;
+  color:var(--fog); display:flex; align-items:center; justify-content:center;
+  cursor:none; transition:all .2s;
+}
+.t-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+.t-dots { display:flex; gap:6px; margin-left:8px; }
+.t-dot { width:6px; height:6px; border-radius:50%; background:var(--steel); transition:background .2s, width .2s; cursor:none; }
+.t-dot.active { background:var(--cyan); width:18px; border-radius:3px; }
+
+/* ─── PRICING ─── */
+#pricing { background:var(--void); }
+.pricing-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(91,245,216,.06); margin-top:64px; }
+.price-card {
+  background:var(--void); padding:48px 40px;
+  position:relative; transition:background .3s; cursor:default;
+}
+.price-card.featured { background:var(--mist); }
+.price-card.featured::before {
+  content:'MOST POPULAR';
+  position:absolute; top:-1px; left:50%; transform:translateX(-50%);
+  background:var(--cyan); color:var(--ink);
+  font-size:9px; font-weight:700; letter-spacing:2px;
+  padding:5px 16px;
+}
+.price-tier { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-bottom:20px; }
+.price-amount {
+  font-family:var(--ff-h); font-size:56px; font-weight:800;
+  color:var(--white); line-height:1; margin-bottom:4px;
+}
+.price-amount span { font-size:22px; color:var(--fog); vertical-align:super; }
+.price-period { font-size:12px; color:var(--dim); margin-bottom:32px; }
+.price-features { list-style:none; display:flex; flex-direction:column; gap:10px; margin-bottom:36px; }
+.price-features li { font-size:13px; color:var(--fog); display:flex; align-items:center; gap:10px; }
+.price-features li::before { content:''; width:5px; height:5px; background:var(--cyan); border-radius:50%; flex-shrink:0; }
+.price-features li.off { color:var(--steel); }
+.price-features li.off::before { background:var(--steel); }
+.price-btn {
+  width:100%; font-family:var(--ff-h); font-size:13px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+  padding:14px; cursor:none; transition:all .25s; border-radius:1px;
+}
+.price-card:not(.featured) .price-btn { background:none; border:1px solid rgba(91,245,216,.2); color:var(--cyan); }
+.price-card:not(.featured) .price-btn:hover { background:rgba(91,245,216,.07); border-color:var(--cyan); }
+.price-card.featured .price-btn { background:var(--cyan); border:none; color:var(--ink); }
+.price-card.featured .price-btn:hover { box-shadow:0 0 40px rgba(91,245,216,.3); transform:translateY(-1px); }
+
+/* ─── CTA SECTION ─── */
+#cta {
+  text-align:center; position:relative; overflow:hidden;
+  padding:140px 60px;
+}
+#ctaCanvas { position:absolute; inset:0; width:100%; height:100%; opacity:.6; }
+.cta-inner { position:relative; z-index:2; }
+.cta-inner .s-title { font-size:clamp(48px,7vw,96px); margin-bottom:24px; }
+.cta-inner p { font-size:17px; color:var(--fog); max-width:440px; margin:0 auto 48px; line-height:1.8; }
+.email-form { display:flex; max-width:440px; margin:0 auto 20px; }
+.email-form input {
+  flex:1; background:var(--mist); border:1px solid rgba(91,245,216,.2); border-right:none;
+  padding:16px 20px; color:var(--white); font-family:var(--ff-m); font-size:13px;
+  outline:none; transition:border-color .2s;
+}
+.email-form input::placeholder { color:var(--dim); }
+.email-form input:focus { border-color:rgba(91,245,216,.5); }
+.email-form button {
+  font-family:var(--ff-h); font-size:12px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+  background:var(--cyan); color:var(--ink); border:none; padding:16px 28px; cursor:none;
+  transition:box-shadow .25s;
+}
+.email-form button:hover { box-shadow:0 0 30px rgba(91,245,216,.35); }
+.cta-note { font-size:11px; color:var(--dim); letter-spacing:1px; }
+
+/* ─── FOOTER ─── */
+footer {
+  border-top:1px solid rgba(91,245,216,.07);
+  padding:60px; display:flex; align-items:center; justify-content:space-between;
+  background:var(--void); flex-wrap:wrap; gap:24px;
+}
+.footer-logo { font-family:var(--ff-h); font-size:18px; font-weight:800; letter-spacing:4px; color:var(--white); }
+.footer-logo span { color:var(--cyan); }
+.footer-links { display:flex; gap:28px; list-style:none; }
+.footer-links a { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--dim); text-decoration:none; transition:color .2s; }
+.footer-links a:hover { color:var(--cyan); }
+.footer-copy { font-size:11px; color:var(--dim); letter-spacing:.5px; }
+
+/* ─── SCROLL REVEAL ─── */
+.reveal { opacity:0; transform:translateY(32px); transition:opacity .7s var(--ease), transform .7s var(--ease); }
+.reveal.visible { opacity:1; transform:translateY(0); }
+.reveal-d1 { transition-delay:.1s; }
+.reveal-d2 { transition-delay:.2s; }
+.reveal-d3 { transition-delay:.3s; }
+.reveal-d4 { transition-delay:.4s; }
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1024px){
+  nav { padding:20px 30px; }
+  nav.scrolled { padding:14px 30px; }
+  .nav-links { display:none; }
+  #hero, section { padding:80px 30px; }
+  .hero-scroll, .hero-badge { display:none; }
+  #product { flex-direction:column; gap:40px; padding:80px 30px; }
+  #productCanvas { width:100%; height:360px; }
+  .features-grid, .stats-grid, .pricing-grid { grid-template-columns:1fr; }
+  footer { padding:40px 30px; flex-direction:column; text-align:center; }
+  .footer-links { justify-content:center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── CURSOR ── -->
+<div id="cur"></div>
+<div id="cur2"></div>
+
+<!-- ── NAV ── -->
+<nav id="nav">
+  <a href="#" class="nav-logo">AXI<span>O</span>M</a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#product">Product</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#testimonials">Reviews</a></li>
+  </ul>
+  <button class="nav-cta">Get Early Access</button>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+  <canvas id="heroCanvas"></canvas>
+  <div class="hero-inner">
+    <div class="hero-label">Redefining productivity</div>
+    <h1>
+      <div class="line"><span>Shape</span></div>
+      <div class="line"><span>Your Deep</span></div>
+      <div class="line"><span>Work.</span></div>
+    </h1>
+    <p class="hero-sub">
+      Axiom is the minimal intelligence layer between you and your best work — silencing noise, surfacing signal, and protecting your rarest resource: focus.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary">Start Free Trial</button>
+      <button class="btn-ghost">
+        Watch Demo
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="hero-scroll"><div class="scroll-bar"></div>Scroll</div>
+  <div class="hero-badge">
+    <div class="badge-ring"></div>
+    <div class="badge-text">v2.0<br>Now<br>Live</div>
+  </div>
+</section>
+
+<!-- ── MARQUEE ── -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <span>Deep Focus Mode <b>—</b></span>
+    <span>Zero Distraction <b>—</b></span>
+    <span>AI-Powered Flow <b>—</b></span>
+    <span>Real-Time Analytics <b>—</b></span>
+    <span>Cross-Device Sync <b>—</b></span>
+    <span>Privacy First <b>—</b></span>
+    <span>Open API <b>—</b></span>
+    <span>Deep Focus Mode <b>—</b></span>
+    <span>Zero Distraction <b>—</b></span>
+    <span>AI-Powered Flow <b>—</b></span>
+    <span>Real-Time Analytics <b>—</b></span>
+    <span>Cross-Device Sync <b>—</b></span>
+    <span>Privacy First <b>—</b></span>
+    <span>Open API <b>—</b></span>
+  </div>
+</div>
+
+<!-- ── FEATURES ── -->
+<section id="features">
+  <div class="s-tag reveal">Core Features</div>
+  <h2 class="s-title reveal reveal-d1">Engineered<br>for clarity.</h2>
+  <div class="features-grid">
+    <div class="feat reveal reveal-d1">
+      <div class="feat-num">01</div>
+      <span class="feat-icon">⬡</span>
+      <h3>Adaptive Focus Shield</h3>
+      <p>AI-driven distraction blocking that learns your patterns and silences everything irrelevant — automatically, in real time.</p>
+      <div class="feat-glow"></div>
+    </div>
+    <div class="feat reveal reveal-d2">
+      <div class="feat-num">02</div>
+      <span class="feat-icon">◈</span>
+      <h3>Deep Work Sessions</h3>
+      <p>Structured time-boxing with biometric-aware pacing. Enter flow state faster and sustain it longer with precision prompts.</p>
+      <div class="feat-glow"></div>
+    </div>
+    <div class="feat reveal reveal-d3">
+      <div class="feat-num">03</div>
+      <span class="feat-icon">⬟</span>
+      <h3>Signal Intelligence</h3>
+      <p>Your productivity data surfaced as clean, actionable insight. Know exactly where your best hours go.</p>
+      <div class="feat-glow"></div>
+    </div>
+    <div class="feat reveal reveal-d1">
+      <div class="feat-num">04</div>
+      <span class="feat-icon">⬡</span>
+      <h3>Zero-Friction Capture</h3>
+      <p>Thought, task, or idea — captured in under a second with keyboard shortcuts that become muscle memory.</p>
+      <div class="feat-glow"></div>
+    </div>
+    <div class="feat reveal reveal-d2">
+      <div class="feat-num">05</div>
+      <span class="feat-icon">◈</span>
+      <h3>Context Switching Guard</h3>
+      <p>Detects and minimizes cognitive switching costs. Your brain will thank you at the end of every day.</p>
+      <div class="feat-glow"></div>
+    </div>
+    <div class="feat reveal reveal-d3">
+      <div class="feat-num">06</div>
+      <span class="feat-icon">⬟</span>
+      <h3>Privacy by Design</h3>
+      <p>On-device processing. No cloud data brokering. Your focus patterns are yours alone — always.</p>
+      <div class="feat-glow"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRODUCT 3D ── -->
+<section id="product">
+  <canvas id="productCanvas"></canvas>
+  <div class="product-info">
+    <div class="s-tag reveal">The Interface</div>
+    <h2 class="s-title reveal reveal-d1">Built different.<br>Stays silent.</h2>
+    <p class="reveal reveal-d2">
+      Axiom runs quietly in the background — a near-invisible layer that makes your tools sharper and your thinking clearer. No bloated dashboards. Just signal.
+    </p>
+    <ul class="spec-list reveal reveal-d2">
+      <li>Under 12ms average response latency</li>
+      <li>Native macOS, Windows & Linux support</li>
+      <li>Integrates with 200+ productivity tools</li>
+      <li>Offline-first, end-to-end encrypted</li>
+      <li>5 MB install footprint</li>
+    </ul>
+    <button class="btn-primary reveal reveal-d3">Explore the Product</button>
+  </div>
+</section>
+
+<!-- ── STATS ── -->
+<section id="stats">
+  <div class="stats-grid">
+    <div class="stat-box reveal">
+      <span class="stat-num" data-target="340">0</span>
+      <span class="stat-label">% Avg focus gain</span>
+    </div>
+    <div class="stat-box reveal reveal-d1">
+      <span class="stat-num" data-target="48">0</span>
+      <span class="stat-label">K active users</span>
+    </div>
+    <div class="stat-box reveal reveal-d2">
+      <span class="stat-num" data-target="99">0</span>
+      <span class="stat-label">% uptime</span>
+    </div>
+    <div class="stat-box reveal reveal-d3">
+      <span class="stat-num" data-target="4.9">0</span>
+      <span class="stat-label">/ 5 avg rating</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── TESTIMONIALS ── -->
+<section id="testimonials">
+  <div class="s-tag reveal">Testimonials</div>
+  <h2 class="s-title reveal reveal-d1">Trusted by<br>deep thinkers.</h2>
+  <div class="testimonials-track" id="tTrack">
+    <div class="tcard">
+      <p class="tcard-quote">I've tried every focus app on the market. Axiom is the first one that actually disappeared into my workflow. Three months in, my deep work blocks doubled.</p>
+      <div class="tcard-author"><div class="tcard-avatar">SR</div><div><div class="tcard-name">Selin Roth</div><div class="tcard-role">Principal Engineer, Scale AI</div></div></div>
+    </div>
+    <div class="tcard">
+      <p class="tcard-quote">The signal intelligence alone is worth it. I finally understand where my mornings actually go — and I've reclaimed almost two hours a day.</p>
+      <div class="tcard-author"><div class="tcard-avatar">MK</div><div><div class="tcard-name">Marcus Kim</div><div class="tcard-role">Founder, Memo Labs</div></div></div>
+    </div>
+    <div class="tcard">
+      <p class="tcard-quote">We rolled Axiom out to our entire engineering team. Sprint velocity went up 28% in the first quarter. The context-switching guard is genuinely magical.</p>
+      <div class="tcard-author"><div class="tcard-avatar">AJ</div><div><div class="tcard-name">Anika Joshi</div><div class="tcard-role">VP Engineering, Lattice</div></div></div>
+    </div>
+    <div class="tcard">
+      <p class="tcard-quote">I write 3,000 words a day. Axiom is the reason I stopped dreading the blank page. It simply eliminates every excuse to stop.</p>
+      <div class="tcard-author"><div class="tcard-avatar">BF</div><div><div class="tcard-name">Ben Farrell</div><div class="tcard-role">Author & Strategist</div></div></div>
+    </div>
+    <div class="tcard">
+      <p class="tcard-quote">Privacy-first isn't a marketing line here — I audited it myself. Everything stays local. That alone is a dealbreaker in my world.</p>
+      <div class="tcard-author"><div class="tcard-avatar">LN</div><div><div class="tcard-name">Lena Novak</div><div class="tcard-role">Security Researcher, Trail of Bits</div></div></div>
+    </div>
+  </div>
+  <div class="t-controls reveal">
+    <button class="t-btn" id="tPrev">←</button>
+    <button class="t-btn" id="tNext">→</button>
+    <div class="t-dots" id="tDots"></div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section id="pricing">
+  <div class="s-tag reveal">Pricing</div>
+  <h2 class="s-title reveal reveal-d1">Simple.<br>No tricks.</h2>
+  <div class="pricing-grid">
+    <div class="price-card reveal reveal-d1">
+      <div class="price-tier">Solo</div>
+      <div class="price-amount"><span>$</span>0</div>
+      <div class="price-period">Free forever</div>
+      <ul class="price-features">
+        <li>3 deep work sessions/day</li>
+        <li>Basic focus shield</li>
+        <li>7-day history</li>
+        <li class="off">Signal intelligence</li>
+        <li class="off">Team features</li>
+        <li class="off">API access</li>
+      </ul>
+      <button class="price-btn">Get Started</button>
+    </div>
+    <div class="price-card featured reveal reveal-d2">
+      <div class="price-tier">Pro</div>
+      <div class="price-amount"><span>$</span>18</div>
+      <div class="price-period">per month</div>
+      <ul class="price-features">
+        <li>Unlimited sessions</li>
+        <li>Adaptive focus shield</li>
+        <li>Full history + export</li>
+        <li>Signal intelligence</li>
+        <li>Priority support</li>
+        <li class="off">API access</li>
+      </ul>
+      <button class="price-btn">Start Free Trial</button>
+    </div>
+    <div class="price-card reveal reveal-d3">
+      <div class="price-tier">Team</div>
+      <div class="price-amount"><span>$</span>14</div>
+      <div class="price-period">per seat / month</div>
+      <ul class="price-features">
+        <li>Everything in Pro</li>
+        <li>Team dashboards</li>
+        <li>Admin controls</li>
+        <li>SSO & SAML</li>
+        <li>API access</li>
+        <li>Dedicated support</li>
+      </ul>
+      <button class="price-btn">Contact Sales</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section id="cta">
+  <canvas id="ctaCanvas"></canvas>
+  <div class="cta-inner">
+    <div class="s-tag reveal" style="justify-content:center">Early Access</div>
+    <h2 class="s-title reveal reveal-d1">Your focus.<br><span style="color:var(--cyan)">Reclaimed.</span></h2>
+    <p class="reveal reveal-d2">Join 48,000 people who do their best work with Axiom. Free to start, no credit card required.</p>
+    <div class="email-form reveal reveal-d3">
+      <input type="email" placeholder="Enter your email" id="emailInput"/>
+      <button onclick="handleEmail()">Join Now</button>
+    </div>
+    <div class="cta-note reveal reveal-d4" id="ctaNote">No spam. Unsubscribe anytime.</div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">AXI<span>O</span>M</div>
+  <ul class="footer-links">
+    <li><a href="#">Product</a></li>
+    <li><a href="#">Pricing</a></li>
+    <li><a href="#">Blog</a></li>
+    <li><a href="#">Careers</a></li>
+    <li><a href="#">Privacy</a></li>
+  </ul>
+  <div class="footer-copy">© 2026 Axiom Inc. All rights reserved.</div>
+</footer>
+
+<script>
+/* ─── CURSOR ─── */
+const cur = document.getElementById('cur');
+const cur2 = document.getElementById('cur2');
+let cx=0,cy=0,tx2=0,ty2=0;
+document.addEventListener('mousemove', e => {
+  cx = e.clientX; cy = e.clientY;
+  cur.style.left = cx+'px'; cur.style.top = cy+'px';
+});
+(function loop(){ tx2+=(cx-tx2)*.1; ty2+=(cy-ty2)*.1; cur2.style.left=tx2+'px'; cur2.style.top=ty2+'px'; requestAnimationFrame(loop); })();
+
+/* ─── NAV SCROLL ─── */
+const nav = document.getElementById('nav');
+window.addEventListener('scroll',()=>{ nav.classList.toggle('scrolled', scrollY>60); });
+
+/* ─── HERO THREE.JS — Particle Constellation ─── */
+(function(){
+  const canvas = document.getElementById('heroCanvas');
+  const W = ()=>window.innerWidth, H = ()=>window.innerHeight;
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(W(),H());
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(70, W()/H(), .1, 500);
+  camera.position.z = 28;
+
+  // Particles
+  const N = 1800;
+  const pos = new Float32Array(N*3);
+  const col = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(2*Math.random()-1);
+    const r = 12 + Math.random()*18;
+    pos[i*3]   = r*Math.sin(phi)*Math.cos(theta);
+    pos[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+    pos[i*3+2] = r*Math.cos(phi) - 5;
+    const br = .15+Math.random()*.5;
+    col[i*3]=0; col[i*3+1]=br; col[i*3+2]=br*.7;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({size:.12,vertexColors:true,transparent:true,opacity:.8})));
+
+  // Floating torus wireframe
+  const tGeo = new THREE.TorusGeometry(7,2.5,12,40);
+  const tMat = new THREE.MeshBasicMaterial({color:0x5bf5d8,wireframe:true,opacity:.04,transparent:true});
+  const torus = new THREE.Mesh(tGeo,tMat);
+  torus.position.set(12,2,-4);
+  scene.add(torus);
+
+  // Grid plane
+  const grid = new THREE.GridHelper(60,30,0x5bf5d8,0x5bf5d8);
+  grid.material.opacity=.04; grid.material.transparent=true;
+  grid.position.y=-12; grid.rotation.x=.15;
+  scene.add(grid);
+
+  let mx=0,my=0;
+  document.addEventListener('mousemove',e=>{mx=(e.clientX/W()-.5)*2; my=-(e.clientY/H()-.5)*2;});
+
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate); t+=.008;
+    scene.children[0].rotation.y = t*.04 + mx*.04;
+    scene.children[0].rotation.x = my*.025;
+    torus.rotation.x = t*.2; torus.rotation.y = t*.12;
+    renderer.render(scene,camera);
+  })();
+
+  window.addEventListener('resize',()=>{ camera.aspect=W()/H(); camera.updateProjectionMatrix(); renderer.setSize(W(),H()); });
+})();
+
+/* ─── PRODUCT THREE.JS — Floating Geometric Form ─── */
+(function(){
+  const canvas = document.getElementById('productCanvas');
+  const W=520, H=520;
+  const renderer = new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(W,H);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60,1,.1,100);
+  camera.position.z=4;
+
+  // Main shape: rounded box stand-in via Icosahedron
+  const geo1 = new THREE.IcosahedronGeometry(1.3, 1);
+  const mat1 = new THREE.MeshStandardMaterial({
+    color:0x0b0d12, roughness:.1, metalness:.95,
+    emissive:0x001a12, emissiveIntensity:.3,
+  });
+  const mesh1 = new THREE.Mesh(geo1, mat1);
+  scene.add(mesh1);
+
+  // Wireframe shell
+  const wire = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.35,1),
+    new THREE.MeshBasicMaterial({color:0x5bf5d8,wireframe:true,opacity:.15,transparent:true})
+  );
+  scene.add(wire);
+
+  // Orbiting ring
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.85,.012,8,80),
+    new THREE.MeshBasicMaterial({color:0x5bf5d8})
+  );
+  ring.rotation.x = Math.PI/2.4;
+  scene.add(ring);
+
+  // Orbiting dots
+  const dotMat = new THREE.MeshBasicMaterial({color:0x5bf5d8});
+  [0,1,2,3].forEach(i=>{
+    const d = new THREE.Mesh(new THREE.SphereGeometry(.04,8,8),dotMat);
+    d.userData.angle = i*(Math.PI/2);
+    scene.add(d);
+  });
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x050a06,4));
+  const pl1 = new THREE.PointLight(0x5bf5d8,6,10); pl1.position.set(3,3,3); scene.add(pl1);
+  const pl2 = new THREE.PointLight(0x2de8bf,3,8);  pl2.position.set(-3,-2,2); scene.add(pl2);
+
+  let hx=0,hy=0,tx=0,ty=0;
+  canvas.addEventListener('mousemove',e=>{
+    const r=canvas.getBoundingClientRect();
+    hx=(e.clientX-r.left)/W-.5; hy=-((e.clientY-r.top)/H-.5);
+  });
+  canvas.addEventListener('mouseleave',()=>{hx=0;hy=0;});
+
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate); t+=.008;
+    tx+=(hx-tx)*.06; ty+=(hy-ty)*.06;
+    mesh1.rotation.x = t*.15+ty*.8;
+    mesh1.rotation.y = t*.22+tx*.8;
+    wire.rotation.x  = mesh1.rotation.x;
+    wire.rotation.y  = mesh1.rotation.y;
+    ring.rotation.z  = t*.3;
+    // update orbiting dots
+    scene.children.slice(3).forEach((d,i)=>{
+      d.userData.angle = (d.userData.angle||0)+.018;
+      d.position.x = Math.cos(d.userData.angle)*1.85;
+      d.position.z = Math.sin(d.userData.angle)*1.85;
+      d.position.y = Math.sin(d.userData.angle*1.5)*.4;
+      d.rotation.copy(ring.rotation);
+    });
+    // pulse light
+    pl1.intensity = 5+Math.sin(t*2)*1.5;
+    renderer.render(scene,camera);
+  })();
+})();
+
+/* ─── CTA THREE.JS — Wireframe sphere field ─── */
+(function(){
+  const canvas = document.getElementById('ctaCanvas');
+  const W=()=>canvas.offsetWidth, H=()=>canvas.offsetHeight;
+  const renderer = new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(W(),H());
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60,W()/H(),.1,100);
+  camera.position.z=14;
+
+  for(let i=0;i<6;i++){
+    const r=.5+Math.random()*1.5;
+    const m = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(r,1),
+      new THREE.MeshBasicMaterial({color:0x5bf5d8,wireframe:true,opacity:.05+Math.random()*.08,transparent:true})
+    );
+    m.position.set((Math.random()-.5)*18,(Math.random()-.5)*10,(Math.random()-.5)*6);
+    m.userData.rx = (Math.random()-.5)*.01;
+    m.userData.ry = (Math.random()-.5)*.015;
+    scene.add(m);
+  }
+
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate); t+=.005;
+    scene.children.forEach(m=>{ m.rotation.x+=m.userData.rx; m.rotation.y+=m.userData.ry; });
+    renderer.render(scene,camera);
+  })();
+  window.addEventListener('resize',()=>{ if(!W()||!H())return; camera.aspect=W()/H(); camera.updateProjectionMatrix(); renderer.setSize(W(),H()); });
+})();
+
+/* ─── SCROLL REVEAL ─── */
+const revealObs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>revealObs.observe(el));
+
+/* ─── STAT COUNTER ─── */
+const statObs = new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(!entry.isIntersecting) return;
+    const el = entry.target;
+    const target = parseFloat(el.dataset.target);
+    const isDecimal = target%1!==0;
+    let cur=0, steps=60;
+    const step = target/steps;
+    const t = setInterval(()=>{
+      cur+=step;
+      if(cur>=target){ el.textContent=isDecimal?target.toFixed(1):target; clearInterval(t); return; }
+      el.textContent=isDecimal?cur.toFixed(1):Math.floor(cur);
+    },18);
+    statObs.unobserve(el);
+  });
+},{threshold:.5});
+document.querySelectorAll('.stat-num[data-target]').forEach(el=>statObs.observe(el));
+
+/* ─── TESTIMONIAL SLIDER ─── */
+const cards = Array.from(document.querySelectorAll('.tcard'));
+const track = document.getElementById('tTrack');
+const dotsEl = document.getElementById('tDots');
+let tIdx=0;
+const VISIBLE=3;
+
+function buildDots(){
+  dotsEl.innerHTML='';
+  const total=Math.ceil(cards.length/1);
+  for(let i=0;i<cards.length;i++){
+    const d=document.createElement('div');
+    d.className='t-dot'+(i===tIdx?' active':'');
+    d.onclick=()=>goTo(i);
+    dotsEl.appendChild(d);
+  }
+}
+function goTo(i){
+  tIdx=Math.max(0,Math.min(i,cards.length-1));
+  const cardW=cards[0].offsetWidth+24;
+  track.style.transform=`translateX(-${tIdx*cardW}px)`;
+  track.style.transition='transform .5s cubic-bezier(.4,0,.2,1)';
+  document.querySelectorAll('.t-dot').forEach((d,j)=>d.classList.toggle('active',j===tIdx));
+}
+document.getElementById('tPrev').onclick=()=>goTo(tIdx-1);
+document.getElementById('tNext').onclick=()=>goTo(tIdx+1);
+track.style.transition='transform .5s cubic-bezier(.4,0,.2,1)';
+buildDots();
+setInterval(()=>{ tIdx<cards.length-1?goTo(tIdx+1):goTo(0); },4000);
+
+/* ─── EMAIL FORM ─── */
+function handleEmail(){
+  const v=document.getElementById('emailInput').value;
+  const note=document.getElementById('ctaNote');
+  if(!v||!v.includes('@')){
+    document.getElementById('emailInput').style.borderColor='rgba(255,80,80,.5)';
+    setTimeout(()=>document.getElementById('emailInput').style.borderColor='',1500);
+    return;
+  }
+  document.getElementById('emailInput').value='';
+  document.getElementById('emailInput').placeholder='✓ You\'re on the list!';
+  note.textContent='🎉 Welcome aboard. Check your inbox for next steps.';
+  note.style.color='var(--cyan)';
+}
+
+/* ─── FEAT CARD MOUSE PARALLAX ─── */
+document.querySelectorAll('.feat').forEach(card=>{
+  card.addEventListener('mousemove',e=>{
+    const r=card.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-.5;
+    const y=(e.clientY-r.top)/r.height-.5;
+    card.style.background=`radial-gradient(circle at ${(x+.5)*100}% ${(y+.5)*100}%,rgba(91,245,216,.05),var(--void) 65%)`;
+  });
+  card.addEventListener('mouseleave',()=>{ card.style.background=''; });
+});
+</script>
+</body>
+</html>
